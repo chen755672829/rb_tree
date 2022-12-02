@@ -1,0 +1,620 @@
+/*
+    此红黑树 无法插入键值相同的元素，如 c++ stl 中set 和 map一样
+*/
+#ifndef __RBTREE_H__
+#define __RBTREE_H__
+#include <assert.h>
+
+typedef enum RbNodeColor 
+{
+    RED = 0, 
+    BLACK = 1,
+} RbNodeColor_t;
+
+/* 整个红黑树结构中，不管理内存。*/
+
+/***
+ * brief: 红黑树结构
+ * @param1[in] name: 红黑树 结构体的名;
+ * @param2[in] type: 红黑树 一个节点全部 对应的类型
+ * 使用：直接调用该接口 RB_TREE(name, type, typedef_name) 把该结构体的定义，引入到当前文件中
+***/
+#define RB_TREE(name, type, typedef_name) \
+    struct name {           \
+        struct type *_root; \
+        struct type *_hol; \
+        int  _size;    \
+    } typedef_name
+
+#define RE_TREE_INIT(rbtree)  \
+    rbtree->_root = rbtree->_hol = NULL;\
+    rbtree->_size = 0
+
+/***
+ * brief: 红黑树节点
+ * @param1[in] type: 红黑树 一个节点全部 对应的类型
+ *
+***/
+#define RE_NODE(type)           \
+struct {                        \
+    struct type *left;          \
+    struct type *right;         \
+    struct type *ftr;           \
+    RbNodeColor_t color;        \
+}
+
+#define RB_NODE_INIT(elem, field)  \
+    (elem)->field.left = (elem)->field.right = (elem)->field.ftr = NULL;
+
+/***
+ *  获取当前 节点全部 里面 红黑树节点字段的 左、右、父亲、颜色的 接口
+ *  elem: 元素名
+ *  field  字段 (元素里面的就只是红黑树节点的字段 RE_NODE)
+ *
+***/
+#define RB_NODE_LEFT(elem, field)   (elem)->field.left
+#define RB_NODE_RIGHT(elem, field)  (elem)->field.right
+#define RB_NODE_FTR(elem, field)    (elem)->field.ftr
+#define RB_NODE_COLOR(elem, field)  (elem)->field.color
+
+
+#define RB_TREE_ROOT(rbtree)    (rbtree)->_root
+#define RB_TREE_HOL(rbtree)     (rbtree)->_hol
+#define RB_TREE_SIZE(rbtree)    ((rbtree)->_size)
+#define RB_TREE_EMPTY(rbtree)   !((rbtree)->_size)
+
+#define RB_NODE_BRO(elem, field)    \
+    (RB_NODE_LEFT(RB_NODE_FTR(elem, field), field) == elem) ?               \
+    (RB_NODE_RIGHT(RB_NODE_FTR(elem, field), field)) :  RB_NODE_LEFT(RB_NODE_FTR(elem, field), field)
+
+//交换 指针指向
+#define SWAP_PTR(a, b, type)    \
+    do {                        \
+        type tmp = a;           \
+        a = b;                  \
+        b = tmp;                \
+    } while(0)
+
+
+/* zig 右旋 */
+#define zig(elem, field)                                                                \
+do {                                                                                    \
+    if (RB_NODE_FTR(elem, field)) {                                                     \
+        if (RB_NODE_LEFT(RB_NODE_FTR(elem, field),field) == elem) {                     \
+            RB_NODE_LEFT(RB_NODE_FTR(elem, field),field) = RB_NODE_LEFT(elem,field);    \
+        }                                                                               \
+        else {                                                                          \
+            RB_NODE_RIGHT(RB_NODE_FTR(elem, field),field) = RB_NODE_LEFT(elem,field);   \
+        }                                                                               \
+    }                                                                                   \
+    if (RB_NODE_RIGHT(RB_NODE_LEFT(elem, field),field)) {                               \
+        RB_NODE_FTR(RB_NODE_RIGHT(RB_NODE_LEFT(elem, field), field), field) = elem;     \
+    }                                                                                   \
+    RB_NODE_FTR(RB_NODE_LEFT(elem, field), field) = RB_NODE_FTR(elem, field);           \
+    RB_NODE_FTR(elem, field) = RB_NODE_LEFT(elem, field);                               \
+    RB_NODE_LEFT(elem, field) = RB_NODE_RIGHT(RB_NODE_LEFT(elem, field), field);        \
+    RB_NODE_RIGHT(RB_NODE_FTR(elem, field), field) = elem;                              \
+} while(0)
+
+#define zag(elem, field)                                                                \
+do {                                                                                    \
+    if (RB_NODE_FTR(elem, field)) {                                                     \
+        if (RB_NODE_LEFT(RB_NODE_FTR(elem, field),field) == elem) {                     \
+            RB_NODE_LEFT(RB_NODE_FTR(elem, field),field) = RB_NODE_RIGHT(elem, field);  \
+        }                                                                               \
+        else {                                                                          \
+            RB_NODE_RIGHT(RB_NODE_FTR(elem, field),field) = RB_NODE_RIGHT(elem, field); \
+        }                                                                               \
+    }                                                                                   \
+    if (RB_NODE_LEFT(RB_NODE_RIGHT(elem, field), field)) {                              \
+        RB_NODE_FTR(RB_NODE_LEFT(RB_NODE_RIGHT(elem, field), field), field) = elem;     \
+    }                                                                                   \
+    RB_NODE_FTR(RB_NODE_RIGHT(elem, field), field) = RB_NODE_FTR(elem, field);          \
+    RB_NODE_FTR(elem, field) = RB_NODE_RIGHT(elem, field);                              \
+    RB_NODE_RIGHT(elem, field) = RB_NODE_LEFT(RB_NODE_RIGHT(elem, field), field);       \
+    RB_NODE_LEFT(RB_NODE_FTR(elem, field), field) = elem;                               \
+} while (0)
+
+
+
+/***
+ * brief: 红黑树函数声明
+ * @param1 [in] name 为 红黑树 结构体类型名；
+ * @param2 [in] type 为 红黑树 节点全部 的类型，这里类型中有 红黑树节点(RB_NODE)的字段
+ * @param3 [in] field 为 红黑树 节点全部 的类型 中 红黑树节点字段的变量名
+ * @param4 [in] cmp 为 红黑树 节点全部类型 比较大小的函数
+ * @param5 [in] attr 为 是否定义为 static inline
+ *  _RB_LEFT_NODE 为找节点的前驱
+ *  _RB_RIGHT_NODE 后继
+ *  _RB_SUCC   为真后继
+ *  _RB_FIND 查找节点
+ *  _RB_INSERT 插入节点
+ *  _RB_SolveDoubleRed 双红修正
+ *  _RB_SolveLostBlack 失黑修正
+ *  _RB_REMOVE  删除节点
+ *  _RB_NODE_MIN 返回红黑树中节点中最小的节点
+ *  _RB_NODE_MAX 返回红黑树中节点最大的节点
+ *  _RB_LOWER_BOUND_NODE lower_bound 查找第一个大于等于自己的节点
+ *  _RB_UPPER_BOUND_NODE upper_bound 查找第一个大于自己的节点
+***/
+#define RB_TREE_FUNC_DECLARE(name, type, field, cmp, attr, funcfree)            \
+    attr struct type *name##_RB_LEFT_NODE(struct name *, struct type *);        \
+    attr struct type *name##_RB_RIGHT_NODE(struct name *, struct type *);       \
+    attr struct type *name##_RB_SUCC(struct type *);                            \
+    attr struct type *name##_RB_FIND(struct name *, struct type *);             \
+    attr int name##_RB_INSERT(struct name *, struct type *);                    \
+    attr void name##_RB_SolveDoubleRed(struct name *, struct type *);           \
+    attr void name##_RB_SolveLostBlack(struct name *, struct type *);           \
+    attr int name##_RB_REMOVE(struct name *, struct type *);                    \
+    attr struct type *name##_RB_NODE_MIN(struct name *);                        \
+    attr struct type *name##_RB_NODE_MAX(struct name *);                        \
+    attr struct type *name##_RB_LOWER_BOUND_NODE(struct name * , struct type * );  \
+    attr struct type *name##_RB_UPPER_BOUND_NODE(struct name * , struct type * )
+
+
+#define RB_TREE_FUNC_DEFINITION(name, type, field, cmp, attr, funcfree)         \
+attr struct type *name##_RB_FIND(struct name * rbtree, struct type * elem)      \
+{                                                                               \
+    assert(rbtree != NULL && elem != NULL);                                     \
+    struct type * ptn =  RB_TREE_ROOT(rbtree);                                  \
+    RB_TREE_HOL(rbtree) = NULL;                                                 \
+    int return_val;                                                             \
+    while (ptn) {                                                               \
+        RB_TREE_HOL(rbtree) = ptn;                                              \
+        return_val = cmp(ptn, elem);                                            \
+        switch (return_val) {                                                   \
+            case 0:                                                             \
+                return ptn;                                                     \
+                break;                                                          \
+            case 1:                                                             \
+                ptn = RB_NODE_RIGHT(ptn, field);                                \
+                break;                                                          \
+            case -1:                                                            \
+                ptn =RB_NODE_LEFT(ptn, field);                                  \
+                break;                                                          \
+            }                                                                   \
+    }                                                                           \
+    return ptn;                                                                 \
+}                                                                               \
+                                                                                \
+attr struct type *name##_RB_SUCC(struct type *elem)                             \
+{                                                                               \
+    if (elem == NULL) {                                                         \
+        return NULL;                                                            \
+    }                                                                           \
+    struct type * ptn = RB_NODE_RIGHT(elem, field);                             \
+    if (ptn != NULL) {                                                          \
+        while (RB_NODE_LEFT(ptn, field) != NULL) {                              \
+            ptn = RB_NODE_LEFT(ptn, field);                                     \
+        }                                                                       \
+    }                                                                           \
+    return ptn;                                                                 \
+}                                                                               \
+                                                                                \
+attr struct type *name##_RB_RIGHT_NODE(struct name* rbtree, struct type* elem)  \
+{                                                                               \
+    if (elem == NULL) return NULL;                                              \
+    if (RB_NODE_RIGHT(elem, field)) {                                           \
+        elem = RB_NODE_RIGHT(elem, field);                                      \
+        while (RB_NODE_LEFT(elem, field)) {                                     \
+            elem = RB_NODE_LEFT(elem, field);                                   \
+        }                                                                       \
+    }                                                                           \
+    else {                                                                      \
+        while (RB_NODE_FTR(elem, field) &&                                      \
+            RB_NODE_RIGHT(RB_NODE_FTR(elem, field), field) == elem) {           \
+               elem = RB_NODE_FTR(elem, field);                                 \
+        }                                                                       \
+        elem = RB_NODE_FTR(elem, field);                                        \
+    }                                                                           \
+    return elem;                                                                \
+}                                                                               \
+                                                                                \
+attr struct type *name##_RB_LEFT_NODE(struct name* rbtree, struct type* elem)   \
+{                                                                               \
+    if (elem == NULL) return NULL;                                              \
+    if (RB_NODE_LEFT(elem, field)) {                                            \
+        elem = RB_NODE_LEFT(elem, field);                                       \
+        while (RB_NODE_RIGHT(elem, field)) {                                    \
+            elem = RB_NODE_RIGHT(elem, field);                                  \
+        }                                                                       \
+    }                                                                           \
+    else {                                                                      \
+        while (RB_NODE_FTR(elem, field) &&                                      \
+          RB_NODE_LEFT(RB_NODE_FTR(elem, field), field) == elem) {              \
+            elem = RB_NODE_FTR(elem, field);                                    \
+        }                                                                       \
+        elem = RB_NODE_FTR(elem, field);                                        \
+    }                                                                           \
+    return elem;                                                                \
+}                                                                               \
+                                                                                \
+attr void name##_RB_SolveDoubleRed(struct name * rbtree, struct type *elem)     \
+{                                                                               \
+    while (RB_NODE_FTR(elem, field) != NULL &&                                  \
+            RB_NODE_COLOR(RB_NODE_FTR(elem, field), field) == RED) {            \
+        struct type * pftr = RB_NODE_FTR(elem, field);                          \
+        struct type * grdftr = RB_NODE_FTR(pftr, field);                        \
+        struct type * uncle = RB_NODE_BRO(pftr, field);                         \
+        if (uncle == NULL || RB_NODE_COLOR(uncle, field) == BLACK) {            \
+            if (RB_NODE_LEFT(grdftr, field) == pftr) {                          \
+                if (RB_NODE_LEFT(pftr, field) == elem) {                        \
+                    if (grdftr == RB_TREE_ROOT(rbtree)) {                       \
+                        RB_TREE_ROOT(rbtree) = pftr;                            \
+                    }                                                           \
+                    zig(grdftr, field);                                         \
+                    RB_NODE_COLOR(grdftr, field) = RED;                         \
+                    RB_NODE_COLOR(pftr, field) = BLACK;                         \
+                } else {                                                        \
+                    if (grdftr == RB_TREE_ROOT(rbtree)) {                       \
+                        RB_TREE_ROOT(rbtree) = elem;                            \
+                    }                                                           \
+                    zag(pftr, field);                                           \
+                    zig(grdftr, field);                                         \
+                    RB_NODE_COLOR(elem, field) = BLACK;                         \
+                    RB_NODE_COLOR(grdftr, field) = RED;                         \
+                }                                                               \
+            } else {                                                            \
+                if (elem == RB_NODE_RIGHT(pftr, field)) {                       \
+                    if (grdftr == RB_TREE_ROOT(rbtree)) {                       \
+                        RB_TREE_ROOT(rbtree) = pftr;                            \
+                    }                                                           \
+                    zag(grdftr, field);                                         \
+                    RB_NODE_COLOR(grdftr, field) = RED;                         \
+                    RB_NODE_COLOR(pftr, field) = BLACK;                         \
+                }                                                               \
+                else {                                                          \
+                    if (grdftr == RB_TREE_ROOT(rbtree)) {                       \
+                        RB_TREE_ROOT(rbtree) = elem;                            \
+                    }                                                           \
+                    zig(pftr, field);                                           \
+                    zag(grdftr, field);                                         \
+                    RB_NODE_COLOR(elem, field) = BLACK;                         \
+                    RB_NODE_COLOR(grdftr, field) = RED;                         \
+                }                                                               \
+            }                                                                   \
+            return ;                                                            \
+        }                                                                       \
+        else {                                                                  \
+            RB_NODE_COLOR(pftr, field) = BLACK;                                 \
+            RB_NODE_COLOR(uncle, field) = BLACK;                                \
+            RB_NODE_COLOR(grdftr, field) = RED;                                 \
+            elem = grdftr;                                                      \
+        }                                                                       \
+    }                                                                           \
+    if (elem == RB_TREE_ROOT(rbtree)) {                                         \
+        RB_NODE_COLOR(elem, field) = BLACK;                                     \
+    }                                                                           \
+    return ;                                                                    \
+}                                                                               \
+                                                                                \
+attr int name##_RB_INSERT(struct name * rbtree, struct type * elem)             \
+{                                                                               \
+    if (elem == NULL) return 0;                                                 \
+    struct type * ptn = name##_RB_FIND(rbtree, elem);                           \
+    if (ptn) {                                                                  \
+        return 0;                                                               \
+    }                                                                           \
+    if (RB_TREE_HOL(rbtree) == NULL) {                                          \
+        RB_NODE_COLOR(elem, field) = BLACK;                                     \
+        RB_TREE_ROOT(rbtree) = elem;                                            \
+        RB_TREE_SIZE(rbtree) = 1;                                               \
+        /*printf("---%s---RB_TREE_SIZE==%d\n",__func__,RB_TREE_SIZE(rbtree));*/ \
+        return 1;                                                               \
+    }                                                                           \
+    RB_NODE_COLOR(elem, field) = RED;                                           \
+    ++ RB_TREE_SIZE(rbtree) ;                                                   \
+    if (cmp(RB_TREE_HOL(rbtree), elem) < 0) {                                   \
+        RB_NODE_LEFT(RB_TREE_HOL(rbtree), field) = elem;                        \
+    }                                                                           \
+    else {                                                                      \
+        RB_NODE_RIGHT(RB_TREE_HOL(rbtree), field) = elem;                       \
+    }                                                                           \
+    RB_NODE_FTR(elem, field) = RB_TREE_HOL(rbtree);                             \
+    name##_RB_SolveDoubleRed(rbtree, elem);                                     \
+    return 1;                                                                   \
+}                                                                               \
+                                                                                \
+attr void name##_RB_SolveLostBlack(struct name *rbtree, struct type * elem)     \
+{                                                                               \
+    while (elem != RB_TREE_ROOT(rbtree)) {                                      \
+        struct type *bro_node = RB_NODE_BRO(elem, field);                       \
+        struct type *pftr = RB_NODE_FTR(elem, field);                           \
+        if (RB_NODE_COLOR(bro_node, field) == RED) {    /*LB-1*/                \
+            RB_NODE_COLOR(bro_node, field) = BLACK;                             \
+            RB_NODE_COLOR(pftr, field) = RED;                                   \
+            if (pftr == RB_TREE_ROOT(rbtree)) {                                 \
+                RB_TREE_ROOT(rbtree) = bro_node;                                \
+            }                                                                   \
+            if (RB_NODE_LEFT(pftr, field) == elem) {                            \
+                zag(pftr, field);                                               \
+            }                                                                   \
+            else {                                                              \
+                zig(pftr, field);                                               \
+            }                                                                   \
+            bro_node = RB_NODE_BRO(elem, field);                                \
+            pftr = RB_NODE_FTR(elem, field);                                    \
+        }                                                                       \
+        /* LB-3 */                                                              \
+        if(RB_NODE_LEFT(bro_node, field) &&                                     \
+               RB_NODE_COLOR(RB_NODE_LEFT(bro_node, field), field) == RED) {    \
+            struct type * bro_son = RB_NODE_LEFT(bro_node, field);              \
+            RbNodeColor_t old_color = RB_NODE_COLOR(pftr, field);               \
+            RB_NODE_COLOR(pftr, field) = BLACK;                                 \
+            if (RB_NODE_LEFT(pftr, field) == bro_node) {                        \
+                if (pftr == RB_TREE_ROOT(rbtree)) {                             \
+                    RB_TREE_ROOT(rbtree) = bro_node;                            \
+                }                                                               \
+                zig(pftr, field);                                               \
+                RB_NODE_COLOR(bro_son, field) = BLACK;                          \
+            }                                                                   \
+            else {                                                              \
+                if (pftr == RB_TREE_ROOT(rbtree)) {                             \
+                    RB_TREE_ROOT(rbtree) = bro_son;                             \
+                }                                                               \
+                zig(bro_node, field);                                           \
+                zag(pftr, field);                                               \
+            }                                                                   \
+            RB_NODE_COLOR(RB_NODE_FTR(pftr, field), field) = old_color;         \
+            return;                                                             \
+       }                                                                        \
+        else if (RB_NODE_RIGHT(bro_node, field) &&                              \
+               RB_NODE_COLOR(RB_NODE_RIGHT(bro_node, field), field) == RED) {   \
+            struct type * bro_son = RB_NODE_RIGHT(bro_node, field);             \
+            RbNodeColor_t old_color = RB_NODE_COLOR(pftr, field);               \
+            RB_NODE_COLOR(pftr, field) = BLACK;                                 \
+            if (RB_NODE_RIGHT(pftr, field) == bro_node) {                       \
+                if (pftr == RB_TREE_ROOT(rbtree)) {                             \
+                    RB_TREE_ROOT(rbtree) = bro_node;                            \
+                }                                                               \
+                zag(pftr, field);                                               \
+                RB_NODE_COLOR(bro_son, field) = BLACK;                          \
+            }                                                                   \
+            else {                                                              \
+                if (pftr == RB_TREE_ROOT(rbtree)) {                             \
+                    RB_TREE_ROOT(rbtree) = bro_son;                             \
+                }                                                               \
+                zag(bro_node, field);                                           \
+                zig(pftr, field);                                               \
+            }                                                                   \
+            RB_NODE_COLOR(RB_NODE_FTR(pftr, field), field) = old_color;         \
+            return;                                                             \
+        }                                                                       \
+        if (RB_NODE_COLOR(pftr, field) == RED) {    /* LB-2R */                 \
+            RB_NODE_COLOR(pftr, field) = BLACK;                                 \
+            RB_NODE_COLOR(bro_node, field) = RED;                               \
+            return;                                                             \
+        }                                                                       \
+        else {  /*LB-2B */                                                      \
+            RB_NODE_COLOR(bro_node, field) = RED;                               \
+            elem = pftr;                                                        \
+        }                                                                       \
+    }                                                                           \
+}                                                                               \
+                                                                                \
+attr void name##swap_elem(struct type *elem_1, struct type *elem_2) {           \
+    struct type * ftr_1 = RB_NODE_FTR(elem_1, field);                           \
+    struct type * left_1 = RB_NODE_LEFT(elem_1, field);                         \
+    struct type * right_1 = RB_NODE_RIGHT(elem_1, field);                       \
+    struct type tmp;                                                            \
+    if (ftr_1 && ftr_1 != elem_2) {                                             \
+        if (RB_NODE_LEFT(ftr_1, field) == elem_1) {                             \
+            RB_NODE_LEFT(ftr_1, field) = elem_2;                                \
+        }                                                                       \
+        else {                                                                  \
+            RB_NODE_RIGHT(ftr_1, field) = elem_2;                               \
+        }                                                                       \
+    }                                                                           \
+    if(left_1 && left_1 != elem_2) RB_NODE_FTR(left_1, field) = elem_2;         \
+    if(right_1 && right_1 != elem_2) RB_NODE_FTR(right_1, field) = elem_2;      \
+    struct type * ftr_2 = RB_NODE_FTR(elem_2, field);                           \
+    struct type * left_2 = RB_NODE_LEFT(elem_2, field);                         \
+    struct type * right_2 = RB_NODE_RIGHT(elem_2, field);                       \
+    if (ftr_2 && ftr_2 != elem_1) {                                             \
+        if (RB_NODE_LEFT(ftr_2, field) == elem_2) {                             \
+            RB_NODE_LEFT(ftr_2, field) = elem_1;                                \
+        }                                                                       \
+        else {                                                                  \
+            RB_NODE_RIGHT(ftr_2, field) = elem_1;                               \
+        }                                                                       \
+    }                                                                           \
+    if(left_2 && left_2 != elem_1) RB_NODE_FTR(left_2, field) = elem_1;         \
+    if(right_2 && right_2 != elem_1) RB_NODE_FTR(right_2, field) = elem_1;      \
+    /*RbNodeColor_t oldcolor_elem_1 = RB_NODE_COLOR(elem_1, field);*/           \
+    /*RbNodeColor_t oldcolor_elem_2 = RB_NODE_COLOR(elem_2, field);*/           \
+    if (RB_NODE_LEFT(elem_1, field) == elem_2) {                                \
+        tmp.field = elem_1->field;                                              \
+        elem_1->field = elem_2->field;                                          \
+        elem_2->field = tmp.field;                                              \
+        RB_NODE_FTR(elem_1, field) = elem_2;                                    \
+        RB_NODE_LEFT(elem_2, field) = elem_1;                                   \
+    }                                                                           \
+    else if(RB_NODE_RIGHT(elem_1, field) == elem_2) {                           \
+        tmp.field = elem_1->field;                                              \
+        elem_1->field = elem_2->field;                                          \
+        elem_2->field = tmp.field;                                              \
+        RB_NODE_FTR(elem_1, field) = elem_2;                                    \
+        RB_NODE_RIGHT(elem_2, field) = elem_1;                                  \
+    }                                                                           \
+    else {                                                                      \
+        tmp.field = elem_1->field;                                              \
+        elem_1->field = elem_2->field;                                          \
+        elem_2->field = tmp.field;                                              \
+    }                                                                           \
+}                                                                               \
+attr int name##_RB_REMOVE(struct name *rbtree, struct type * elem)              \
+{                                                                               \
+    struct type * succ = NULL;                                                  \
+    struct type tmp;                                                            \
+    elem = name##_RB_FIND(rbtree, elem);                                        \
+    if (!elem) {                                                                \
+        return 0;                                                               \
+    }                                                                           \
+    while (RB_NODE_RIGHT(elem, field) || RB_NODE_LEFT(elem, field)) {           \
+        if (RB_NODE_LEFT(elem, field) == NULL) {                                \
+            succ = RB_NODE_RIGHT(elem, field);                                  \
+        }                                                                       \
+        else if(RB_NODE_RIGHT(elem, field) == NULL) {                           \
+            succ = RB_NODE_LEFT(elem, field);                                   \
+        }                                                                       \
+        else {                                                                  \
+            succ = name##_RB_SUCC(elem);                                        \
+        }                                                                       \
+        name##swap_elem(elem, succ);                                            \
+        if (elem == RB_TREE_ROOT(rbtree)) {                                     \
+            RB_TREE_ROOT(rbtree) = succ;                                        \
+        }                                                                       \
+    }                                                                           \
+    --RB_TREE_SIZE(rbtree);                                                     \
+    if (RB_NODE_COLOR(elem, field) == BLACK) {                                  \
+        name##_RB_SolveLostBlack(rbtree, elem);                                 \
+    }                                                                           \
+    if (RB_NODE_FTR(elem, field)) {                                             \
+        if (RB_NODE_LEFT(RB_NODE_FTR(elem, field), field) == elem) {            \
+            RB_NODE_LEFT(RB_NODE_FTR(elem, field), field) = NULL;               \
+        }                                                                       \
+        else {                                                                  \
+            RB_NODE_RIGHT(RB_NODE_FTR(elem, field), field) = NULL;              \
+        }                                                                       \
+    }                                                                           \
+    if (RB_TREE_ROOT(rbtree) == elem) {                                         \
+        /*printf("--%s---remove root\n");*/                                     \
+        RB_TREE_ROOT(rbtree) = NULL;                                            \
+    }                                                                           \
+    funcfree(elem);                                                             \
+    return ;                                                                    \
+}                                                                               \
+attr struct type *name##_RB_NODE_MIN(struct name * rbtree)                      \
+{                                                                               \
+    struct type *ptn = RB_TREE_ROOT(rbtree);                                    \
+    if (!ptn) return NULL;                                                      \
+    while (RB_NODE_LEFT(ptn, field)) {                                          \
+        ptn = RB_NODE_LEFT(ptn, field);                                         \
+    }                                                                           \
+    return ptn;                                                                 \
+}                                                                               \
+attr struct type *name##_RB_NODE_MAX(struct name * rbtree)                      \
+{                                                                               \
+    struct type *ptn = RB_TREE_ROOT(rbtree);                                    \
+    if (!ptn) return NULL;                                                      \
+    while (RB_NODE_RIGHT(ptn, field)) {                                         \
+        ptn = RB_NODE_RIGHT(ptn, field);                                        \
+    }                                                                           \
+    return ptn;                                                                 \
+}                                                                               \
+attr struct type *name##_RB_LOWER_BOUND_NODE(struct name * rbtree , struct type * elem)     \
+{                                                                                           \
+    struct type *ptn = RB_TREE_ROOT(rbtree);                                                \
+    if (ptn == NULL) return NULL;                                                           \
+    RB_TREE_HOL(rbtree) = NULL;                                                             \
+    while (ptn) {                                                                           \
+        RB_TREE_HOL(rbtree) = ptn;                                                          \
+        if (cmp(ptn, elem) <= 0) {                                                          \
+            ptn = RB_NODE_LEFT(ptn, field);                                                 \
+        }                                                                                   \
+        else {                                                                              \
+            ptn = RB_NODE_RIGHT(ptn, field);                                                \
+        }                                                                                   \
+    }                                                                                       \
+    if (cmp(RB_TREE_HOL(rbtree), elem) <= 0) {                                              \
+        return RB_TREE_HOL(rbtree);                                                         \
+    }                                                                                       \
+    else return name##_RB_RIGHT_NODE(rbtree, RB_TREE_HOL(rbtree));                          \
+}                                                                                           \
+attr struct type *name##_RB_UPPER_BOUND_NODE(struct name * rbtree , struct type * elem)     \
+{                                                                                           \
+    struct type *ptn = RB_TREE_ROOT(rbtree);                                                \
+    if (ptn == NULL) return NULL;                                                           \
+    RB_TREE_HOL(rbtree) = NULL;                                                             \
+    while (ptn) {                                                                           \
+        RB_TREE_HOL(rbtree) = ptn;                                                          \
+        if (cmp(ptn, elem) < 0) {                                                           \
+            ptn = RB_NODE_LEFT(ptn, field);                                                 \
+        }                                                                                   \
+        else {                                                                              \
+            ptn = RB_NODE_RIGHT(ptn, field);                                                \
+        }                                                                                   \
+    }                                                                                       \
+    if (cmp(RB_TREE_HOL(rbtree), elem) < 0) {                                               \
+        return RB_TREE_HOL(rbtree);                                                         \
+    }                                                                                       \
+    else return name##_RB_RIGHT_NODE(rbtree, RB_TREE_HOL(rbtree));                          \
+}
+
+/***
+ * @param1[in] name    为红黑树结构体名
+ * @param2[in] var_name  红黑树结构体 的 指针变量名
+ * @param3[in] node   为红黑树 节点全部对应 指针变量名
+ * 下面这边宏函数，其中只有 插入RB_INSERT时的 红黑树节点node需要创建初始化好，
+ * 其他的宏函数，参数node都是为了比较，没有其他作用
+ * 删除节点前，会调用 RB_FIND 查找 对比比较 参数node里面的值，在树上是否相同的值，若存在，返回相同的值在树的节点指针，然后进行删除
+ *
+***/
+#define RB_INSERT(name, var_name, node) name##_RB_INSERT(var_name, node)
+#define RB_REMOVE(name, var_name, node) name##_RB_REMOVE(var_name, node)
+#define RB_FIND(name, var_name, node) name##_RB_FIND(var_name, node)
+#define RB_MIN_NODE(name, var_name) name##_RB_NODE_MIN(var_name)
+#define RB_MAX_NODE(name, var_name) name##_RB_NODE_MAX(var_name)
+#define RB_LOWER_BOUND_NODE(name, var_name, node)  name##_RB_LOWER_BOUND_NODE(var_name , node)
+#define RB_UPPER_BOUND_NODE(name, var_name, node)  name##_RB_UPPER_BOUND_NODE(var_name , node)
+
+/***
+ * brief: 从小到大遍历红黑树（也是中序遍历）
+ * @param1[in] node   为红黑树 节点全部对应 指针变量名
+ * @param2[in] name    为红黑树结构体名
+ * @param3[in] var_name  红黑树结构体 的 指针变量名
+ *
+***/
+#define for_each(node, name, var_name)          \
+for (node = RB_MIN_NODE(name, var_name);        \
+    node != NULL;                               \
+    node = name##_RB_RIGHT_NODE(var_name, node))
+
+/***
+ * brief: 从大到小遍历红黑树（也是中序遍历）
+ * @param1[in] node   为红黑树 节点全部对应 指针变量名
+ * @param2[in] name    为红黑树结构体名
+ * @param3[in] var_name  红黑树结构体 的 指针变量名
+ *
+***/
+#define for_each_reverse(node, name ,var_name)      \
+for (node = RB_MAX_NODE(name, var_name);            \
+    node != NULL;                                   \
+    node = name##_RB_LEFT_NODE(var_name, node))
+
+
+/** 
+ * 因为_RB_RIGHT_NODE函数，有elem元素为NULL判断 所以可以这样调用next = name##_RB_RIGHT_NODE(var_name, node);
+ * 若没有elem元素为NULL判断，则需要想法解决，因为node这时候可能为NULL。
+ * brief: 从小到大遍历红黑树（也是中序遍历），能避免在for循环中对当前指针节点的操作，带来的影响。
+ * @param1[in] node   为红黑树 节点全部对应 指针变量名
+ * @param2[in] next   为红黑树 节点全部对应 指针变量名
+ * @param3[in] name    为红黑树结构体名
+ * @param4[in] var_name  红黑树结构体 的 指针变量名
+**/
+#define for_each_safe(node, next, name, var_name)                                       \
+for (node = RB_MIN_NODE(name, var_name), next = name##_RB_RIGHT_NODE(var_name, node);   \
+    node != NULL;                                   \
+    node = next, next = name##_RB_RIGHT_NODE(var_name, node))
+
+
+#define for_each_reverse_safe(node, next, name ,var_name)      \
+for (node = RB_MAX_NODE(name, var_name), next = name##_RB_LEFT_NODE(var_name, node);    \
+    node != NULL;                                   \
+    node = next, next= name##_RB_LEFT_NODE(var_name, node))
+
+
+
+#endif
+
+
+
+
+
+
+
+
+
+
+
+
