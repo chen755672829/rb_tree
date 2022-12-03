@@ -1,10 +1,8 @@
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <time.h>
 
 #include "rbtree.h"
-
 
 
 #define LEN  1024
@@ -13,7 +11,6 @@ typedef struct node {
     RE_NODE(node) rbnode;
     int key;
 }Node_t;
-
 
 static inline int cmp(struct node *k1 ,struct node *k2)
 {
@@ -24,16 +21,27 @@ static inline int cmp(struct node *k1 ,struct node *k2)
     return -1;
 }
 
+static inline int key_cmp(struct node *kk, int key){
+    if (kk->key < key)
+       return 1;
+    else if (kk->key == key)
+       return 0;
+    return -1;
+}
+
+int FreeNum = 0;
+int MallocNum = 0;
 static inline void rbfree(struct node * kk)
 {
     free(kk);
+    FreeNum ++;
 }
 
 RB_TREE(rbtree, node ,) ttrbtree, *ptr;
 
-RB_TREE_FUNC_DECLARE(rbtree, node , rbnode, cmp, static inline, rbfree);
+RB_TREE_FUNC_DECLARE(rbtree, node , rbnode, cmp, static inline, int, key_cmp, rbfree);
 
-RB_TREE_FUNC_DEFINITION(rbtree, node , rbnode, cmp, static inline, rbfree)
+RB_TREE_FUNC_DEFINITION(rbtree, node , rbnode, cmp, static inline, int, key_cmp, rbfree)
 
 
 // 当时调试RB_SolveLostBlack失黑修正的代码。
@@ -170,18 +178,13 @@ int main()
     srand((unsigned)time(NULL));
     for (i = 0; i < LEN ; i++) {
         int tmp = rand() & (LEN - 1);
-        
+
         nn = malloc(sizeof(Node_t));
-        if (i == 0) {
-            RB_NODE_INIT(nn, rbnode);
-        }
-        else {
-            RB_NODE_INIT(nn, rbnode);
-        }
+        RB_NODE_INIT(nn, rbnode);
         nn->key = tmp;
         //printf("tmp==%d\n",tmp);
         if (RB_INSERT(rbtree, ptr, nn) == 0) {
-            //printf("nn->key==%d\n",nn->key);
+            free(nn);
         }
     }
 #if 1
@@ -192,25 +195,31 @@ int main()
 
 
 #if 1
-    Node_t tmp;
+    Node_t tmp, *ptr_tmp;
     for (i = 0; i < 500 ; i++) {
-        tmp.key = i;
         //printf("tmp.key==%d\n",tmp.key);
-        RB_REMOVE(rbtree, ptr, &tmp);
+        ptr_tmp = RB_REMOVE_FROM_KEY(rbtree, ptr, i);
+        free(ptr_tmp);
     }
 
     for(i = 500; i<=550; i++) {
         tmp.key = i;
-        if (RB_FIND(rbtree, ptr, &tmp)) {
-            printf("i==%d lower==%d upper==%d\n",i, RB_LOWER_BOUND_NODE(rbtree, ptr, &tmp)->key,
-                    RB_UPPER_BOUND_NODE(rbtree, ptr, &tmp)->key);
+        if (RB_FIND_FROM_KEY(rbtree, ptr, i)) {
+            printf("i==%d lower==%d upper==%d\n",i, RB_LOWER_BOUND_FROM_KEY(rbtree, ptr, i)->key,
+                    RB_UPPER_BOUND_FROM_KEY(rbtree, ptr, i)->key);
         }
     }
+#if 0
     printf("*********************************\n");
     for_each (nn, rbtree, ptr) {
         printf("key==%d\n",nn->key);
     }
 #endif
-    return 0;
+#endif
 
+    printf("rbtree->size == %d\n", RB_TREE_SIZE(ptr));
+    RB_TREE_EXIT(rbtree, ptr);
+    printf("rbtree->size == %d FreeNum == %d\n", RB_TREE_SIZE(ptr), FreeNum);
+
+    return 0;
 }
