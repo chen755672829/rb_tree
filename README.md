@@ -4,10 +4,10 @@
   详解文档：https://note.youdao.com/s/JVExYtzD  
   2、rbtree.h 文件是通过c语言的宏定义实现了c++中模板的功能。test_rbtree.c文件是为了测试 rbtree.h实现的红黑树。  
   红黑树具体怎么实现的请看上面的文档链接。若看宏定义红黑树的接口怎么使用，请看文档：https://note.youdao.com/s/5RcvOjKJ  
-## 二、简单介绍一下通过图片介绍一下红黑树
+## 二、通过图片简单介绍一下红黑树
 ###  1、找节点前驱  
   ![image](https://user-images.githubusercontent.com/35031390/205441617-af447318-6dd1-4c92-b780-3b4a74b0dade.png)
-###  2、找节点前驱
+###  2、找节点后继
   ![image](https://user-images.githubusercontent.com/35031390/205441650-33dccbbd-11f9-4203-a812-b127fb62b7a9.png)
 ###  3、zig右旋
   ![image](https://user-images.githubusercontent.com/35031390/205441690-9739038e-6c27-4fec-bf73-e624ad0c5fb1.png)
@@ -18,7 +18,7 @@
 ## 三、宏定义使用红黑树的结构与结构介绍
 ### 专有名词
   1、使用接口前先弄懂一些专有名词的介绍  
-  ![image](https://user-images.githubusercontent.com/35031390/205441863-22e6fc15-6548-4c4d-9101-50390a64ba3b.png)
+  ![image](https://user-images.githubusercontent.com/35031390/205441863-22e6fc15-6548-4c4d-9101-50390a64ba3b.png)  
   2、红黑树结构与创建红黑树  
   ![image](https://user-images.githubusercontent.com/35031390/205441903-6599f0c6-0ca8-4870-b987-bc0acdc01a13.png)
   3、红黑树节点全部类型解析  
@@ -113,7 +113,7 @@ RB_TREE_FUNC_DECLARE(rbtree, node , rbnode, cmp, static inline, int, key_cmp, rb
 RB_TREE_FUNC_DEFINITION(rbtree, node , rbnode, cmp, static inline, int, key_cmp, rbfree)
 ```
 ####  5、红黑树接口函数  
-#####（1）初始化红黑树
+##### （1）初始化红黑树
 ```
 /***
  * brief: 初始化红黑树。
@@ -124,7 +124,7 @@ RB_TREE_FUNC_DEFINITION(rbtree, node , rbnode, cmp, static inline, int, key_cmp,
     rbtree->_root = rbtree->_hol = NULL;\
     rbtree->_size = 0
 ```
-#####（2）初始化红黑树节点
+##### （2）初始化红黑树节点
 ```
 /***
  * brief: 初始化红黑树节点。
@@ -134,7 +134,7 @@ RB_TREE_FUNC_DEFINITION(rbtree, node , rbnode, cmp, static inline, int, key_cmp,
 #define RB_NODE_INIT(elem, field)  \
     (elem)->field.left = (elem)->field.right = (elem)->field.ftr = NULL;
 ```
-#####（3）插入节点
+##### （3）插入节点
 ```
 /***
  * @brief: 插入节点
@@ -146,7 +146,7 @@ RB_TREE_FUNC_DEFINITION(rbtree, node , rbnode, cmp, static inline, int, key_cmp,
 ***/
 #define RB_INSERT(name, var_name, node) name##_RB_INSERT(var_name, node)
 ```
-#####（4）删除节点
+##### （4）删除节点
   删除节点有两个接口：  
   **RB_REMOVE** 通过红黑树节点全部类型指针变量（这个节点确定在红黑树上），进行删除；调用这个接口前，用户需要调用RB_FIND或RB_REMOVE_FROM_KEY 查找在树上是否相同的值，若存在，返回相同的值在红黑树树的节点指针，然后把节点指针传入RB_REMOVE的第三个参数进行删除。  
   **RB_REMOVE_FROM_KEY**：删除节点，传入key值，在树上查找并删除节点。  
@@ -170,7 +170,7 @@ RB_TREE_FUNC_DEFINITION(rbtree, node , rbnode, cmp, static inline, int, key_cmp,
 ***/
 #define RB_REMOVE_FROM_KEY(name, var_name, key) name##_RB_REMOVE_FROM_KEY(var_name, key)
 ```
-#####（5）查找节点
+##### （5）查找节点
   查找节点有两个接口：  
   **RB_FIND**：在树上查找节点。第三个参数node，不是树上的节点，只用于查找时，进行对比使用，没有其他作用  
   **RB_FIND_FROM_KEY**：通过key值，在红黑树上查找节点。  
@@ -193,7 +193,7 @@ RB_TREE_FUNC_DEFINITION(rbtree, node , rbnode, cmp, static inline, int, key_cmp,
 ***/
 #define RB_FIND_FROM_KEY(name, var_name, node) name##_RB_FIND_FROM_KEY(var_name, node)
 ```
-#####（6）查找红黑树上最小的节点
+##### （6）查找红黑树上最小的节点
 ```
 /***
  * @brief: 查找红黑树上最小的节点。
@@ -203,7 +203,7 @@ RB_TREE_FUNC_DEFINITION(rbtree, node , rbnode, cmp, static inline, int, key_cmp,
 ***/
 #define RB_MIN_NODE(name, var_name) name##_RB_NODE_MIN(var_name)
 ```
-#####（7）查找红黑树上最大的节点
+##### （7）查找红黑树上最大的节点
 ```
 /***
  * @brief: 查找红黑树上最大的节点。
@@ -213,7 +213,7 @@ RB_TREE_FUNC_DEFINITION(rbtree, node , rbnode, cmp, static inline, int, key_cmp,
 ***/
 #define RB_MAX_NODE(name, var_name) name##_RB_NODE_MAX(var_name)
 ```
-#####（8）lower_bound 查找第一个大于等于查找的值的节点指针
+##### （8）lower_bound 查找第一个大于等于查找的值的节点指针
   两个接口：  
   **RB_LOWER_BOUND**：通过node值进行查找。这里的node不是红黑树上节点，只用对比，和RB_FIND第三个参数一样，只需填充key即可。  
   **RB_LOWER_BOUND_FROM_KEY**：通过key值，查找红黑树上第一个大于等于查找的值的节点指针。  
@@ -237,7 +237,7 @@ RB_TREE_FUNC_DEFINITION(rbtree, node , rbnode, cmp, static inline, int, key_cmp,
 ***/
 #define RB_LOWER_BOUND_FROM_KEY(name, var_name, key)  name##_RB_LOWER_BOUND_NODE_FROM_KEY(var_name , key)
 ```
-#####（9）upper_bound 查找第一个大于查找的值的节点指针
+##### （9）upper_bound 查找第一个大于查找的值的节点指针
   两个接口：  
   **RB_UPPER_BOUND**：通过node值进行查找。这里的node不是红黑树上节点，只用对比，和RB_FIND第三个参数一样，只需填充key即可。  
   **RB_UPPER_BOUND_FROM_KEY**：通过key值，查找红黑树上第一个大于查找的值的节点指针  
@@ -261,7 +261,7 @@ RB_TREE_FUNC_DEFINITION(rbtree, node , rbnode, cmp, static inline, int, key_cmp,
 ***/
 #define RB_UPPER_BOUND_FROM_KEY(name, var_name, key)  name##_RB_UPPER_BOUND_NODE_FROM_KEY(var_name , key)
 ```
-#####（10）销毁红黑树
+##### （10）销毁红黑树
 ```
 /***
  * @brief: 销毁红黑树。
@@ -273,7 +273,7 @@ RB_TREE_FUNC_DEFINITION(rbtree, node , rbnode, cmp, static inline, int, key_cmp,
     name##_RB_TREE_FREE_DFS(var_name, RB_TREE_ROOT(var_name)); \
     RB_TREE_ROOT(var_name) = NULL; } while(0)
 ```
-#####（11）遍历红黑树
+##### （11）遍历红黑树
 ```
 /***
  * brief: 从小到大遍历红黑树（也是中序遍历）
