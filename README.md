@@ -30,8 +30,7 @@
   3、红黑树节点全部类型解析  
   ![image](https://user-images.githubusercontent.com/35031390/205441969-24f91e24-e4d2-424d-8ac8-be2126b6b6d0.png)
   4、红黑树结构图  
-  ![Uploading image.png…]()
-
+  ![image](https://user-images.githubusercontent.com/35031390/205472492-1d9f643e-ca7f-43af-9e40-c4dafb32e1fc.png)
 ### 接口使用
 ####  1、红黑树节点全部类型，记得定义红黑树节点字段  
 ```
